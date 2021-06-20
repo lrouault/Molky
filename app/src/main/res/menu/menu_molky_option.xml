@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/menu_MolkyOptionScoreFinal"
+        android:title="Score final : 40"/>
+    <item
+        android:id="@+id/menu_MolkyOptionScoreFinalAction"
+        android:title="-- Action si depasse : HALF"/>
+    <item
+        android:id="@+id/menu_MolkyOptionNbZero"
+        android:title="Nombre de zero max : 3"/>
+    <item
+        android:id="@+id/menu_MolkyOptionNbZeroAction"
+        android:title="-- Action si depasse : ZERO"/>
+    <item
+        android:id="@+id/menu_MolkyOptionChuteEgalite"
+        android:title="Chutes si egalite : OUI"/>
+</menu>

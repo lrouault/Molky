@@ -11,8 +11,10 @@ public class MolkyJoueurBank {
     ArrayList<MolkyJoueur> m_listJoueurs = new ArrayList<>();
     int m_nextPlayer = 0;
     private Boolean m_someoneHasWon = false;
+    public MolkyGamePreference m_gamePref = null;
 
-    public MolkyJoueurBank() {
+    public MolkyJoueurBank(MolkyGamePreference ai_gamePref) {
+        m_gamePref = ai_gamePref;
     }
 
     public MolkyJoueurBank(MolkyJoueurBank ai_joueurBank) {
@@ -26,7 +28,7 @@ public class MolkyJoueurBank {
     }
 
     public void addJoueur(String ai_name) {
-        m_listJoueurs.add(new MolkyJoueur(ai_name));
+        m_listJoueurs.add(new MolkyJoueur(ai_name, m_gamePref));
     }
 
     public void clearJoueurs() {
@@ -36,14 +38,32 @@ public class MolkyJoueurBank {
 
     public void addLancer(Integer ai_score) {
         if (!m_listJoueurs.isEmpty()) {
+            // Nouveau lancer
             m_listJoueurs.get(m_nextPlayer).newLancer(ai_score);
+            // A-t-il gagne ?
             m_someoneHasWon = m_listJoueurs.get(m_nextPlayer).getHasWon();
-
-            if (m_listJoueurs.get(m_nextPlayer).getIsDownForOther()) {
-                Integer w_score = m_listJoueurs.get(m_nextPlayer).getLastScore();
+            // Doit-il prendre le score minimal de la partie ?
+            if (m_listJoueurs.get(m_nextPlayer).hasToGetLastScore()) {
+                int w_min =m_gamePref.m_finalScore;
                 for (int w_joueur = 0; w_joueur < m_listJoueurs.size(); w_joueur++) {
                     if (m_nextPlayer != w_joueur) {
-                        m_listJoueurs.get(w_joueur).otherScore(w_score);
+                        if (m_listJoueurs.get(w_joueur).getLastScore() < w_min) {
+                            w_min = m_listJoueurs.get(w_joueur).getLastScore();
+                        }
+                    }
+                }
+                m_listJoueurs.get(m_nextPlayer).setScoreDown(w_min);
+            }
+
+            // A-t-il atteint le score d'un autre joueur
+            // OUI => Descente des autres joueurs (selon les parametres)
+            if(m_gamePref.m_isFallingOnEqualityActivated){
+                if (m_listJoueurs.get(m_nextPlayer).getIsDownForOther()) {
+                    Integer w_score = m_listJoueurs.get(m_nextPlayer).getLastScore();
+                    for (int w_joueur = 0; w_joueur < m_listJoueurs.size(); w_joueur++) {
+                        if (m_nextPlayer != w_joueur) {
+                            m_listJoueurs.get(w_joueur).otherScore(w_score);
+                        }
                     }
                 }
             }

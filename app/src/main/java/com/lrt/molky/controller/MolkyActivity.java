@@ -1,11 +1,13 @@
 package com.lrt.molky.controller;
 
 import android.app.AlertDialog;
+import android.content.ClipData;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import android.text.InputType;
 import android.util.Log;
@@ -24,7 +26,9 @@ import android.widget.Toast;
 
 import com.lrt.molky.R;
 import com.lrt.molky.common.CommonEnum;
+import com.lrt.molky.common.CommonMolkyEnum;
 import com.lrt.molky.model.Game2048;
+import com.lrt.molky.model.molky.MolkyGamePreference;
 import com.lrt.molky.model.molky.MolkyJoueurBank;
 import com.lrt.molky.model.molky.MolkyJoueurData;
 import com.lrt.molky.view.OnSwipeListener;
@@ -42,6 +46,7 @@ public class MolkyActivity extends AppCompatActivity  {
 
     // Model
     private MolkyJoueurBank m_joueurBank, m_previousJoueurBank, m_previousJoueurBank2;
+    private MolkyGamePreference m_gamePref;
 
     // Gestion des deplacements des tuiles
     private GestureDetector m_gestureDetector;
@@ -50,6 +55,7 @@ public class MolkyActivity extends AppCompatActivity  {
     private TextView[] m_molkyBtn = new TextView[13];
 
     // Layout et boutons actionnables
+    private Menu m_optionMenu;
     private TextView m_txtScore;
     private Button m_btnClear;
     private Button m_btnAddPlayer;
@@ -69,8 +75,10 @@ public class MolkyActivity extends AppCompatActivity  {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        m_joueurBank = new MolkyJoueurBank();
+        m_gamePref = new MolkyGamePreference();
+        m_joueurBank = new MolkyJoueurBank(m_gamePref);
         m_previousJoueurBank = new MolkyJoueurBank(m_joueurBank);
+
 
 
         setContentView(R.layout.activity_molky);
@@ -108,11 +116,14 @@ public class MolkyActivity extends AppCompatActivity  {
                 @Override
                 public void onClick(View v) {
                     if (m_joueurBank.getSomeoneHasWon()) {
-                        Toast.makeText(getApplicationContext(), "Someone has won ! Restart ?", Toast.LENGTH_LONG).show();
+                        _showDialogRestart(true);
                     } else {
                         _svgPreviousState();
                         m_joueurBank.addLancer(finalW_i);
                         _majAffichage();
+                        if (m_joueurBank.getSomeoneHasWon()) {
+                            _showDialogRestart(true);
+                        }
                     }
                 }
             });
@@ -142,7 +153,7 @@ public class MolkyActivity extends AppCompatActivity  {
         m_btnRestart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                _showDialogRestart();
+                _showDialogRestart(false);
             }
         });
 
@@ -192,7 +203,7 @@ public class MolkyActivity extends AppCompatActivity  {
         w_linear.addView(w_text);
         w_linear.addView(w_edit);
 
-        w_alert.setTitle("Frequence d'appartition du 4");
+        w_alert.setTitle("Add player");
         w_alert.setView(w_linear);
 
         w_alert.setPositiveButton("Ok",new DialogInterface.OnClickListener()
@@ -207,7 +218,7 @@ public class MolkyActivity extends AppCompatActivity  {
         w_alert.show();
     }
 
-    private void _showDialogRestart() {
+    private void _showDialogRestart(boolean ai_hasWon) {
         DialogInterface.OnClickListener dialogClickListener = new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
@@ -226,8 +237,13 @@ public class MolkyActivity extends AppCompatActivity  {
         };
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Are you sure?").setPositiveButton("Yes", dialogClickListener)
-                .setNegativeButton("No", dialogClickListener).show();
+        if (ai_hasWon) {
+            builder.setMessage("Someone has won. Do you want to restart?").setPositiveButton("Yes", dialogClickListener)
+                    .setNegativeButton("No", dialogClickListener).show();
+        } else {
+            builder.setMessage("Are you sure?").setPositiveButton("Yes", dialogClickListener)
+                    .setNegativeButton("No", dialogClickListener).show();
+        }
     }
 
     private void _showDialogClear() {
@@ -302,5 +318,315 @@ public class MolkyActivity extends AppCompatActivity  {
             w_scoreLayout.addView(w_molky_score);
         }
 
+    }
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu)
+    {
+        getMenuInflater().inflate(R.menu.menu_molky_option, menu);
+        this.m_optionMenu = menu;
+        return true;
+    }
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        switch (item.getItemId()){
+
+            case R.id.menu_MolkyOptionScoreFinal:
+                _showDialogScoreFinal();
+                break;
+            case R.id.menu_MolkyOptionScoreFinalAction:
+                _showDialogScoreFinalAction();
+                break;
+            case R.id.menu_MolkyOptionNbZero:
+                _showDialogNbZero();
+                break;
+            case R.id.menu_MolkyOptionNbZeroAction:
+                _showDialogNbZeroAction();
+                break;
+            case R.id.menu_MolkyOptionChuteEgalite:
+                _showDialogEquality();
+                break;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void _showDialogScoreFinal() {
+        final TextView w_text=new TextView(this);
+        w_text.setPadding(10, 10, 10, 10);
+
+        final SeekBar w_seek=new SeekBar(this);
+        w_seek.setMax(9);
+        w_seek.setProgress(m_gamePref.m_finalScore/10 - 1);
+        w_text.setText("Apres validation "+ m_gamePref.m_finalScore +" (defaut : 40)");
+        w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                w_text.setText("Apres validation :"+ ((progress+1)*10)+" (defaut : 40)");
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        final AlertDialog.Builder w_alert = new AlertDialog.Builder(this);
+        LinearLayout w_linear=new LinearLayout(this);
+        w_linear.setOrientation(LinearLayout.VERTICAL);
+        w_linear.addView(w_seek);
+        w_linear.addView(w_text);
+
+        w_alert.setTitle("Choix du score final :");
+        w_alert.setView(w_linear);
+
+        w_alert.setPositiveButton("Ok",new DialogInterface.OnClickListener()
+        {
+            public void onClick(DialogInterface dialog,int id)
+            {
+                m_gamePref.m_finalScore = ((w_seek.getProgress()+1)*10);
+                MenuItem w_finalScoreItem = m_optionMenu.findItem(R.id.menu_MolkyOptionScoreFinal);
+                w_finalScoreItem.setTitle("Score final : "+m_gamePref.m_finalScore);
+            }
+        });
+        w_alert.show();
+    }
+
+    private void _showDialogScoreFinalAction() {
+        final TextView w_text=new TextView(this);
+        w_text.setPadding(10, 10, 10, 10);
+
+        final SeekBar w_seek=new SeekBar(this);
+        w_seek.setMax(2);
+        if (m_gamePref.m_passScore == CommonMolkyEnum.PassFinalScoreEnum.E_ZERO) {
+            w_text.setText("Apres validation : ZERO (defaut : ZERO)");
+            w_seek.setProgress(0);
+        }else if (m_gamePref.m_passScore == CommonMolkyEnum.PassFinalScoreEnum.E_HALF) {
+            w_text.setText("Apres validation : HALF (defaut : HALF)");
+            w_seek.setProgress(1);
+        }else {
+            w_text.setText("Apres validation : WON (defaut : WON)");
+            w_seek.setProgress(2);
+        }
+        w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress == 0) {
+                    w_text.setText("Apres validation : ZERO (defaut : ZERO)");
+                }else if (progress == 1) {
+                    w_text.setText("Apres validation : HALF (defaut : ZERO)");
+                }else {
+                    w_text.setText("Apres validation : WON (defaut : ZERO)");
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        final AlertDialog.Builder w_alert = new AlertDialog.Builder(this);
+        LinearLayout w_linear=new LinearLayout(this);
+        w_linear.setOrientation(LinearLayout.VERTICAL);
+        w_linear.addView(w_seek);
+        w_linear.addView(w_text);
+
+        w_alert.setTitle("Action sur score trop grand :");
+        w_alert.setView(w_linear);
+
+        w_alert.setPositiveButton("Ok",new DialogInterface.OnClickListener()
+        {
+            public void onClick(DialogInterface dialog,int id)
+            {
+                MenuItem w_passScoreItem = m_optionMenu.findItem(R.id.menu_MolkyOptionScoreFinalAction);
+                if (w_seek.getProgress() == 0) {
+                    w_passScoreItem.setTitle("-- Action si depasse : ZERO");
+                    m_gamePref.m_passScore = CommonMolkyEnum.PassFinalScoreEnum.E_ZERO;
+                }else if (w_seek.getProgress() == 1) {
+                    w_passScoreItem.setTitle("-- Action si depasse : HALF");
+                    m_gamePref.m_passScore = CommonMolkyEnum.PassFinalScoreEnum.E_HALF;
+                }else {
+                    w_passScoreItem.setTitle("-- Action si depasse : WON");
+                    m_gamePref.m_passScore = CommonMolkyEnum.PassFinalScoreEnum.E_WON;
+                }
+            }
+        });
+        w_alert.show();
+    }
+
+    private void _showDialogNbZero() {
+        final TextView w_text=new TextView(this);
+        w_text.setPadding(10, 10, 10, 10);
+
+        final SeekBar w_seek=new SeekBar(this);
+        w_seek.setMax(5);
+        w_seek.setProgress(m_gamePref.m_nbZeroMax);
+        w_text.setText("Apres validation "+ m_gamePref.m_nbZeroMax +" (defaut : 40)");
+        w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                w_text.setText("Apres validation : "+ progress +" (defaut : 3)");
+                if (progress == 0) {
+                    w_text.setText("Apres validation : RAS (defaut : 3)");
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        final AlertDialog.Builder w_alert = new AlertDialog.Builder(this);
+        LinearLayout w_linear=new LinearLayout(this);
+        w_linear.setOrientation(LinearLayout.VERTICAL);
+        w_linear.addView(w_seek);
+        w_linear.addView(w_text);
+
+        w_alert.setTitle("Choix du nombre de zero avant action :");
+        w_alert.setView(w_linear);
+
+        w_alert.setPositiveButton("Ok",new DialogInterface.OnClickListener()
+        {
+            public void onClick(DialogInterface dialog,int id)
+            {
+                m_gamePref.m_nbZeroMax = w_seek.getProgress();
+                MenuItem w_nbZeroMaxItem = m_optionMenu.findItem(R.id.menu_MolkyOptionNbZero);
+                w_nbZeroMaxItem.setTitle("Nombre de zero max : 3"+m_gamePref.m_nbZeroMax);
+                if (0 == w_seek.getProgress()) {
+                    m_gamePref.m_isFallingOnZeroActivated = false;
+                    w_nbZeroMaxItem.setTitle("Nombre de zero max : RAS");
+                } else {
+                    m_gamePref.m_isFallingOnZeroActivated = true;
+                    w_nbZeroMaxItem.setTitle("Nombre de zero max : "+m_gamePref.m_nbZeroMax);
+                }
+            }
+        });
+        w_alert.show();
+    }
+
+    private void _showDialogNbZeroAction() {
+        final TextView w_text=new TextView(this);
+        w_text.setPadding(10, 10, 10, 10);
+
+        final SeekBar w_seek=new SeekBar(this);
+        w_seek.setMax(2);
+        if (m_gamePref.m_passZero == CommonMolkyEnum.PassNbZeroMaxEnum.E_ZERO) {
+            w_text.setText("Apres validation : ZERO (defaut : ZERO)");
+            w_seek.setProgress(0);
+        }else if (m_gamePref.m_passZero == CommonMolkyEnum.PassNbZeroMaxEnum.E_LAST) {
+            w_text.setText("Apres validation : LAST (defaut : ZERO)");
+            w_seek.setProgress(1);
+        }else {
+            w_text.setText("Apres validation : HALF (defaut : ZERO)");
+            w_seek.setProgress(2);
+        }
+        w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress == 0) {
+                    w_text.setText("Apres validation : ZERO (defaut : ZERO)");
+                }else if (progress == 1) {
+                    w_text.setText("Apres validation : LAST (defaut : ZERO)");
+                }else {
+                    w_text.setText("Apres validation : HALF (defaut : ZERO)");
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        final AlertDialog.Builder w_alert = new AlertDialog.Builder(this);
+        LinearLayout w_linear=new LinearLayout(this);
+        w_linear.setOrientation(LinearLayout.VERTICAL);
+        w_linear.addView(w_seek);
+        w_linear.addView(w_text);
+
+        w_alert.setTitle("Action sur trop de ratés :");
+        w_alert.setView(w_linear);
+
+        w_alert.setPositiveButton("Ok",new DialogInterface.OnClickListener()
+        {
+            public void onClick(DialogInterface dialog,int id)
+            {
+
+                MenuItem w_nbZeroActionItem = m_optionMenu.findItem(R.id.menu_MolkyOptionNbZeroAction);
+                if (w_seek.getProgress() == 0) {
+                    w_nbZeroActionItem.setTitle("-- Action si depasse : ZERO");
+                    m_gamePref.m_passZero = CommonMolkyEnum.PassNbZeroMaxEnum.E_ZERO;
+                }else if (w_seek.getProgress() == 1) {
+                    w_nbZeroActionItem.setTitle("-- Action si depasse : LAST");
+                    m_gamePref.m_passZero = CommonMolkyEnum.PassNbZeroMaxEnum.E_LAST;
+                }else {
+                    w_nbZeroActionItem.setTitle("-- Action si depasse : HALF");
+                    m_gamePref.m_passZero = CommonMolkyEnum.PassNbZeroMaxEnum.E_HALF;
+                }
+            }
+        });
+        w_alert.show();
+    }
+
+    private void _showDialogEquality() {
+        final TextView w_text=new TextView(this);
+        w_text.setPadding(10, 10, 10, 10);
+
+        final SeekBar w_seek=new SeekBar(this);
+        w_seek.setMax(1);
+        if (m_gamePref.m_isFallingOnEqualityActivated) {
+            w_text.setText("Chute si égalité : OUI (defaut : OUI)");
+            w_seek.setProgress(1);
+        } else {
+            w_text.setText("Chute si égalité : NON (defaut : OUI)");
+            w_seek.setProgress(0);
+        }
+        w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress == 0) {
+                    w_text.setText("Apres validation : NON (defaut : OUI)");
+                }else {
+                    w_text.setText("Apres validation : OUI (defaut : OUI)");
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        final AlertDialog.Builder w_alert = new AlertDialog.Builder(this);
+        LinearLayout w_linear=new LinearLayout(this);
+        w_linear.setOrientation(LinearLayout.VERTICAL);
+        w_linear.addView(w_seek);
+        w_linear.addView(w_text);
+
+        w_alert.setTitle("Chute si on atteint un score adverse :");
+        w_alert.setView(w_linear);
+
+        w_alert.setPositiveButton("Ok",new DialogInterface.OnClickListener()
+        {
+            public void onClick(DialogInterface dialog,int id)
+            {
+                MenuItem w_equalityItem = m_optionMenu.findItem(R.id.menu_MolkyOptionChuteEgalite);
+                if (w_seek.getProgress() == 0) {
+                    w_equalityItem.setTitle("Chutes si egalite : NON");
+                    m_gamePref.m_isFallingOnEqualityActivated = false;
+                } else {
+                    w_equalityItem.setTitle("Chutes si egalite : OUI");
+                    m_gamePref.m_isFallingOnEqualityActivated = true;
+                }
+            }
+        });
+        w_alert.show();
     }
 }

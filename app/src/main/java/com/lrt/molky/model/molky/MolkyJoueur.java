@@ -5,25 +5,27 @@ import java.util.ArrayList;
 
 public class MolkyJoueur {
     //private static final String TAG = "MolkyJoueur";
+    private static MolkyGamePreference m_gamePref = null; // only modified by model
 
     private final String m_name;
     private ArrayList<Integer> m_score = new ArrayList<>();
     private Integer m_nbZero = 0;
-    private Integer m_maxNbZero = 3;
 
 
     private  Boolean m_isDownForOther = false;
     private boolean m_hasWon = false;
 
-    public MolkyJoueur(String ai_name) {
+    private boolean m_hasToGetLastScore = false;
+
+    public MolkyJoueur(String ai_name, MolkyGamePreference ai_gamePref) {
         m_name = ai_name;
+        m_gamePref = ai_gamePref;
         clearScore();
     }
 
     public MolkyJoueur(MolkyJoueur ai_copy) {
         m_name = ai_copy.m_name;
         m_nbZero = ai_copy.m_nbZero;
-        m_maxNbZero = ai_copy.m_maxNbZero;
         m_isDownForOther = ai_copy.m_isDownForOther;
         m_hasWon = ai_copy.m_hasWon;
         m_score = new ArrayList<>(ai_copy.m_score);
@@ -33,18 +35,44 @@ public class MolkyJoueur {
         m_isDownForOther = false;
         if (ai_lancer == 0) {
             m_nbZero += 1;
-            if (m_nbZero.equals(m_maxNbZero)) {
-                clearScore();
+            if (m_nbZero.equals(m_gamePref.m_nbZeroMax)) {
+                switch (m_gamePref.m_passZero) {
+                    case E_HALF:
+                        halfScore();
+                        break;
+                    case E_LAST:
+                        m_hasToGetLastScore = true;
+                        break;
+                    case E_ZERO:
+                        clearScore();
+                        break;
+                    // case E_HALF gere par au MolkyJoueurBank
+                }
             }
         } else {
+            // Reinitialisation du nombre de zero
             m_nbZero = 0;
+            // Ajout du nouveau score
             m_score.add(m_score.get(m_score.size()-1) + ai_lancer);
-            if (getLastScore() > 40) {
-                m_score.clear();
-                m_score.add(20);
-            } else if (getLastScore() == 40)  {
+
+            // A-t-il depasser le score maximal ?
+            if (getLastScore() > m_gamePref.m_finalScore) {
+                switch (m_gamePref.m_passScore){
+                    case E_WON:
+                        m_hasWon = true;
+                        break;
+                    case E_HALF:
+                        halfScore();
+                        break;
+                    case E_ZERO:
+                        clearScore();
+                        break;
+                }
+            // A-t-il gagne ?
+            } else if (getLastScore() == m_gamePref.m_finalScore)  {
                 m_hasWon = true;
-            } else {
+            // Peut-il faire tomber les autres ?
+            } else if (m_gamePref.m_isFallingOnEqualityActivated) {
                 m_isDownForOther = true;
             }
         }
@@ -87,6 +115,18 @@ public class MolkyJoueur {
         m_hasWon = false;
     }
 
+    public void halfScore() {
+        int w_halfScore = m_gamePref.m_finalScore/2;
+        m_score.clear();
+        m_score.add(w_halfScore);
+    }
+
+    public void setScoreDown(int ai_score) {
+        m_score.clear();
+        m_score.add(ai_score);
+        m_hasToGetLastScore = false;
+    }
+
     public Boolean getIsDownForOther() {
         return m_isDownForOther;
     }
@@ -98,5 +138,8 @@ public class MolkyJoueur {
     }
     public Integer getNbZero() {
         return m_nbZero;
+    }
+    public boolean hasToGetLastScore() {
+        return m_hasToGetLastScore;
     }
 }
