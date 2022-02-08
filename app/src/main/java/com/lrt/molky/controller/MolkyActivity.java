@@ -1,7 +1,6 @@
 package com.lrt.molky.controller;
 
 import android.app.AlertDialog;
-import android.content.ClipData;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
@@ -14,7 +13,6 @@ import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
@@ -22,21 +20,14 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.lrt.molky.R;
-import com.lrt.molky.common.CommonEnum;
 import com.lrt.molky.common.CommonMolkyEnum;
-import com.lrt.molky.model.Game2048;
 import com.lrt.molky.model.molky.MolkyGamePreference;
 import com.lrt.molky.model.molky.MolkyJoueurBank;
 import com.lrt.molky.model.molky.MolkyJoueurData;
-import com.lrt.molky.view.OnSwipeListener;
 
 import java.util.ArrayList;
-import java.util.StringTokenizer;
-
-import static java.lang.Math.pow;
 
 public class MolkyActivity extends AppCompatActivity  {
     private static final String TAG = "MolkyActivity";
@@ -75,8 +66,23 @@ public class MolkyActivity extends AppCompatActivity  {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        m_gamePref = new MolkyGamePreference();
+        // Instantiation du plateau avec celle sauvegardee si existante
+        m_sharedPreferences = getPreferences(MODE_PRIVATE);
+        String w_strGamePref = m_sharedPreferences.getString("Molky_gamePref","");
+        String w_strJoueurBank = m_sharedPreferences.getString("Molky_joueurBank","");
+        Log.d(TAG,"GamePref   sauvegarde : "+w_strGamePref);
+        Log.d(TAG,"JoueurBank sauvegarde : "+w_strJoueurBank);
+
+        m_gamePref =  new MolkyGamePreference();
+        if (w_strGamePref!="") {
+            m_gamePref.parseString(w_strGamePref);
+        }
+
+        //TODO Serialize joueur bank
         m_joueurBank = new MolkyJoueurBank(m_gamePref);
+        if (w_strJoueurBank!="") {
+            m_joueurBank.parseString(w_strJoueurBank);
+        }
         m_previousJoueurBank = new MolkyJoueurBank(m_joueurBank);
 
 
@@ -304,17 +310,28 @@ public class MolkyActivity extends AppCompatActivity  {
             TextView w_txtPosition = w_molky_score.findViewById(R.id.molky_score_position);
             w_txtPosition.setText(""+w_joueur.m_position);
 
-            if (w_joueur.m_nbZero == 1) {
+            if ((w_joueur.m_nbZero > 0)
+                    || ((m_gamePref.m_nbZeroMax > 1)
+                    && ((m_gamePref.m_nbZeroMax - w_joueur.m_nbZero) == 1))) {
+                TextView w_txtNbZero = w_molky_score.findViewById(R.id.molky_score_nbZero);
+                w_txtNbZero.setText(w_joueur.m_nbZero+"/"+m_gamePref.m_nbZeroMax);
+            }
+            if (  (    (m_gamePref.m_nbZeroMax == 2)
+                    && (w_joueur.m_nbZero == 1))
+                ||(    (w_joueur.m_nbZero >= 1))
+                    && (m_gamePref.m_nbZeroMax > 2)
+                    && (m_gamePref.m_nbZeroMax-w_joueur.m_nbZero <= 2)) {
                 TextView w_txtFirstMiss = w_molky_score.findViewById(R.id.molky_score_firstMiss);
                 w_txtFirstMiss.setBackgroundResource(R.drawable.redcross);
-            } else if (w_joueur.m_nbZero == 2) {
+            }
+            if (w_joueur.m_nbZero >= 1
+                    && (m_gamePref.m_nbZeroMax >= 3)
+                    && ((m_gamePref.m_nbZeroMax - w_joueur.m_nbZero) <= 1)) {
                 TextView w_txtFirstMiss = w_molky_score.findViewById(R.id.molky_score_firstMiss);
                 w_txtFirstMiss.setBackgroundResource(R.drawable.redcross);
                 TextView w_txtSecondMiss = w_molky_score.findViewById(R.id.molky_score_secondMiss);
                 w_txtSecondMiss.setBackgroundResource(R.drawable.redcross);
             }
-
-
             w_scoreLayout.addView(w_molky_score);
         }
 
@@ -326,6 +343,7 @@ public class MolkyActivity extends AppCompatActivity  {
     {
         getMenuInflater().inflate(R.menu.menu_molky_option, menu);
         this.m_optionMenu = menu;
+        _majTxtOptionMenu();
         return true;
     }
     @Override
@@ -358,11 +376,11 @@ public class MolkyActivity extends AppCompatActivity  {
         final SeekBar w_seek=new SeekBar(this);
         w_seek.setMax(9);
         w_seek.setProgress(m_gamePref.m_finalScore/10 - 1);
-        w_text.setText("Apres validation "+ m_gamePref.m_finalScore +" (defaut : 40)");
+        w_text.setText("Apres validation "+ m_gamePref.m_finalScore +" (defaut : "+ MolkyGamePreference.C_DEFAULT_FINALSCORE +")");
         w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                w_text.setText("Apres validation :"+ ((progress+1)*10)+" (defaut : 40)");
+                w_text.setText("Apres validation :"+ ((progress+1)*10)+" (defaut : "+ MolkyGamePreference.C_DEFAULT_FINALSCORE +")");
             }
 
             @Override
@@ -386,8 +404,7 @@ public class MolkyActivity extends AppCompatActivity  {
             public void onClick(DialogInterface dialog,int id)
             {
                 m_gamePref.m_finalScore = ((w_seek.getProgress()+1)*10);
-                MenuItem w_finalScoreItem = m_optionMenu.findItem(R.id.menu_MolkyOptionScoreFinal);
-                w_finalScoreItem.setTitle("Score final : "+m_gamePref.m_finalScore);
+                _majTxtOptionMenuFinalScore();
             }
         });
         w_alert.show();
@@ -399,26 +416,13 @@ public class MolkyActivity extends AppCompatActivity  {
 
         final SeekBar w_seek=new SeekBar(this);
         w_seek.setMax(2);
-        if (m_gamePref.m_passScore == CommonMolkyEnum.PassFinalScoreEnum.E_ZERO) {
-            w_text.setText("Apres validation : ZERO (defaut : ZERO)");
-            w_seek.setProgress(0);
-        }else if (m_gamePref.m_passScore == CommonMolkyEnum.PassFinalScoreEnum.E_HALF) {
-            w_text.setText("Apres validation : HALF (defaut : HALF)");
-            w_seek.setProgress(1);
-        }else {
-            w_text.setText("Apres validation : WON (defaut : WON)");
-            w_seek.setProgress(2);
-        }
+        w_text.setText("Apres validation : "+m_gamePref.m_passScore+" (defaut : "+ MolkyGamePreference.C_DEFAULT_PASSSCORE +")");
+        w_seek.setProgress(m_gamePref.m_passScore.ordinal());
+
         w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (progress == 0) {
-                    w_text.setText("Apres validation : ZERO (defaut : ZERO)");
-                }else if (progress == 1) {
-                    w_text.setText("Apres validation : HALF (defaut : ZERO)");
-                }else {
-                    w_text.setText("Apres validation : WON (defaut : ZERO)");
-                }
+                w_text.setText("Apres validation : "+CommonMolkyEnum.PassFinalScoreEnum.values()[progress].toString()+" (defaut : "+ MolkyGamePreference.C_DEFAULT_PASSSCORE +")");
             }
 
             @Override
@@ -442,16 +446,8 @@ public class MolkyActivity extends AppCompatActivity  {
             public void onClick(DialogInterface dialog,int id)
             {
                 MenuItem w_passScoreItem = m_optionMenu.findItem(R.id.menu_MolkyOptionScoreFinalAction);
-                if (w_seek.getProgress() == 0) {
-                    w_passScoreItem.setTitle("-- Action si depasse : ZERO");
-                    m_gamePref.m_passScore = CommonMolkyEnum.PassFinalScoreEnum.E_ZERO;
-                }else if (w_seek.getProgress() == 1) {
-                    w_passScoreItem.setTitle("-- Action si depasse : HALF");
-                    m_gamePref.m_passScore = CommonMolkyEnum.PassFinalScoreEnum.E_HALF;
-                }else {
-                    w_passScoreItem.setTitle("-- Action si depasse : WON");
-                    m_gamePref.m_passScore = CommonMolkyEnum.PassFinalScoreEnum.E_WON;
-                }
+                m_gamePref.m_passScore = CommonMolkyEnum.PassFinalScoreEnum.values()[w_seek.getProgress()];
+                _majTxtOptionMenuPassScore();
             }
         });
         w_alert.show();
@@ -464,13 +460,13 @@ public class MolkyActivity extends AppCompatActivity  {
         final SeekBar w_seek=new SeekBar(this);
         w_seek.setMax(5);
         w_seek.setProgress(m_gamePref.m_nbZeroMax);
-        w_text.setText("Apres validation "+ m_gamePref.m_nbZeroMax +" (defaut : 40)");
+        w_text.setText("Apres validation "+ m_gamePref.m_nbZeroMax +" (defaut : "+ MolkyGamePreference.C_DEFAULT_NBZEROMAX +")");
         w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                w_text.setText("Apres validation : "+ progress +" (defaut : 3)");
+                w_text.setText("Apres validation : "+ progress +" (defaut : "+ MolkyGamePreference.C_DEFAULT_NBZEROMAX +")");
                 if (progress == 0) {
-                    w_text.setText("Apres validation : RAS (defaut : 3)");
+                    w_text.setText("Apres validation : RAS (defaut : "+ MolkyGamePreference.C_DEFAULT_NBZEROMAX +")");
                 }
             }
 
@@ -495,15 +491,8 @@ public class MolkyActivity extends AppCompatActivity  {
             public void onClick(DialogInterface dialog,int id)
             {
                 m_gamePref.m_nbZeroMax = w_seek.getProgress();
-                MenuItem w_nbZeroMaxItem = m_optionMenu.findItem(R.id.menu_MolkyOptionNbZero);
-                w_nbZeroMaxItem.setTitle("Nombre de zero max : 3"+m_gamePref.m_nbZeroMax);
-                if (0 == w_seek.getProgress()) {
-                    m_gamePref.m_isFallingOnZeroActivated = false;
-                    w_nbZeroMaxItem.setTitle("Nombre de zero max : RAS");
-                } else {
-                    m_gamePref.m_isFallingOnZeroActivated = true;
-                    w_nbZeroMaxItem.setTitle("Nombre de zero max : "+m_gamePref.m_nbZeroMax);
-                }
+                m_gamePref.m_isFallingOnZeroActivated = (0 != m_gamePref.m_nbZeroMax);
+                _majTxtOptionMenuNbZeroMax();
             }
         });
         w_alert.show();
@@ -515,26 +504,14 @@ public class MolkyActivity extends AppCompatActivity  {
 
         final SeekBar w_seek=new SeekBar(this);
         w_seek.setMax(2);
-        if (m_gamePref.m_passZero == CommonMolkyEnum.PassNbZeroMaxEnum.E_ZERO) {
-            w_text.setText("Apres validation : ZERO (defaut : ZERO)");
-            w_seek.setProgress(0);
-        }else if (m_gamePref.m_passZero == CommonMolkyEnum.PassNbZeroMaxEnum.E_LAST) {
-            w_text.setText("Apres validation : LAST (defaut : ZERO)");
-            w_seek.setProgress(1);
-        }else {
-            w_text.setText("Apres validation : HALF (defaut : ZERO)");
-            w_seek.setProgress(2);
-        }
+
+        w_text.setText("Apres validation : "+m_gamePref.m_passZero+" (defaut : "+ MolkyGamePreference.C_DEFAULT_PASSSZERO +")");
+        w_seek.setProgress(m_gamePref.m_passZero.ordinal());
+
         w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (progress == 0) {
-                    w_text.setText("Apres validation : ZERO (defaut : ZERO)");
-                }else if (progress == 1) {
-                    w_text.setText("Apres validation : LAST (defaut : ZERO)");
-                }else {
-                    w_text.setText("Apres validation : HALF (defaut : ZERO)");
-                }
+                w_text.setText("Apres validation : "+CommonMolkyEnum.PassNbZeroMaxEnum.values()[progress]+" (defaut : "+ MolkyGamePreference.C_DEFAULT_PASSSZERO +")");
             }
 
             @Override
@@ -557,18 +534,8 @@ public class MolkyActivity extends AppCompatActivity  {
         {
             public void onClick(DialogInterface dialog,int id)
             {
-
-                MenuItem w_nbZeroActionItem = m_optionMenu.findItem(R.id.menu_MolkyOptionNbZeroAction);
-                if (w_seek.getProgress() == 0) {
-                    w_nbZeroActionItem.setTitle("-- Action si depasse : ZERO");
-                    m_gamePref.m_passZero = CommonMolkyEnum.PassNbZeroMaxEnum.E_ZERO;
-                }else if (w_seek.getProgress() == 1) {
-                    w_nbZeroActionItem.setTitle("-- Action si depasse : LAST");
-                    m_gamePref.m_passZero = CommonMolkyEnum.PassNbZeroMaxEnum.E_LAST;
-                }else {
-                    w_nbZeroActionItem.setTitle("-- Action si depasse : HALF");
-                    m_gamePref.m_passZero = CommonMolkyEnum.PassNbZeroMaxEnum.E_HALF;
-                }
+                m_gamePref.m_passZero = CommonMolkyEnum.PassNbZeroMaxEnum.values()[w_seek.getProgress()];
+                _majTxtOptionMenuNbZeroAction();
             }
         });
         w_alert.show();
@@ -580,21 +547,14 @@ public class MolkyActivity extends AppCompatActivity  {
 
         final SeekBar w_seek=new SeekBar(this);
         w_seek.setMax(1);
-        if (m_gamePref.m_isFallingOnEqualityActivated) {
-            w_text.setText("Chute si égalité : OUI (defaut : OUI)");
-            w_seek.setProgress(1);
-        } else {
-            w_text.setText("Chute si égalité : NON (defaut : OUI)");
-            w_seek.setProgress(0);
-        }
+        w_text.setText("Chute si égalité : "+m_gamePref.m_isFallingOnEqualityActivated+" (defaut : "+ MolkyGamePreference.C_DEFAULT_ISFALLINGEQUALITY +")");
+        w_seek.setProgress(m_gamePref.m_isFallingOnEqualityActivated? 1 : 0);
+
         w_seek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (progress == 0) {
-                    w_text.setText("Apres validation : NON (defaut : OUI)");
-                }else {
-                    w_text.setText("Apres validation : OUI (defaut : OUI)");
-                }
+                boolean w_tmp = (0 != progress);
+                w_text.setText("Apres validation : "+ w_tmp +" (defaut : "+ MolkyGamePreference.C_DEFAULT_ISFALLINGEQUALITY +")");
             }
 
             @Override
@@ -613,20 +573,54 @@ public class MolkyActivity extends AppCompatActivity  {
         w_alert.setTitle("Chute si on atteint un score adverse :");
         w_alert.setView(w_linear);
 
-        w_alert.setPositiveButton("Ok",new DialogInterface.OnClickListener()
-        {
-            public void onClick(DialogInterface dialog,int id)
-            {
-                MenuItem w_equalityItem = m_optionMenu.findItem(R.id.menu_MolkyOptionChuteEgalite);
-                if (w_seek.getProgress() == 0) {
-                    w_equalityItem.setTitle("Chutes si egalite : NON");
-                    m_gamePref.m_isFallingOnEqualityActivated = false;
-                } else {
-                    w_equalityItem.setTitle("Chutes si egalite : OUI");
-                    m_gamePref.m_isFallingOnEqualityActivated = true;
-                }
-            }
+        w_alert.setPositiveButton("Ok", (dialog, id) -> {
+            m_gamePref.m_isFallingOnEqualityActivated = (0 != w_seek.getProgress());
+            _majTxtOptionMenuEquality();
         });
         w_alert.show();
+    }
+
+    private void _majTxtOptionMenu() {
+        _majTxtOptionMenuFinalScore();
+        _majTxtOptionMenuPassScore();
+        _majTxtOptionMenuNbZeroMax();
+        _majTxtOptionMenuNbZeroAction();
+        _majTxtOptionMenuEquality();
+    }
+
+    private void _majTxtOptionMenuFinalScore() {
+        MenuItem w_finalScoreItem = m_optionMenu.findItem(R.id.menu_MolkyOptionScoreFinal);
+        w_finalScoreItem.setTitle("Score final : "+m_gamePref.m_finalScore);
+    }
+
+    private void _majTxtOptionMenuPassScore() {
+        MenuItem w_passScoreItem = m_optionMenu.findItem(R.id.menu_MolkyOptionScoreFinalAction);
+        w_passScoreItem.setTitle("-- Action si depasse : " + m_gamePref.m_passScore.toString());
+    }
+
+    private void _majTxtOptionMenuNbZeroMax() {
+        MenuItem w_nbZeroMaxItem = m_optionMenu.findItem(R.id.menu_MolkyOptionNbZero);
+        if (m_gamePref.m_isFallingOnZeroActivated) {
+            w_nbZeroMaxItem.setTitle("Nombre de zero max : "+m_gamePref.m_nbZeroMax);
+        } else {
+            w_nbZeroMaxItem.setTitle("Nombre de zero max : RAS");
+        }
+    }
+
+    private void _majTxtOptionMenuNbZeroAction() {
+        MenuItem w_nbZeroActionItem = m_optionMenu.findItem(R.id.menu_MolkyOptionNbZeroAction);
+        w_nbZeroActionItem.setTitle("-- Action si depasse : " + m_gamePref.m_passZero.toString());
+    }
+
+    private void _majTxtOptionMenuEquality() {
+        MenuItem w_equalityItem = m_optionMenu.findItem(R.id.menu_MolkyOptionChuteEgalite);
+        w_equalityItem.setTitle("Chutes si egalite : " + m_gamePref.m_isFallingOnEqualityActivated.toString());
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        m_sharedPreferences.edit().putString("Molky_gamePref", m_gamePref.toString()).apply();
+        m_sharedPreferences.edit().putString("Molky_joueurBank", m_joueurBank.toString()).apply();
     }
 }

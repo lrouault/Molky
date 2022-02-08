@@ -33,9 +33,9 @@ public class MolkyJoueur {
 
     public void newLancer(Integer ai_lancer) {
         m_isDownForOther = false;
-        if (ai_lancer == 0) {
+        if ((ai_lancer == 0) && (m_gamePref.m_nbZeroMax != 0)) {
             m_nbZero += 1;
-            if (m_nbZero.equals(m_gamePref.m_nbZeroMax)) {
+            if (m_nbZero == m_gamePref.m_nbZeroMax) {
                 switch (m_gamePref.m_passZero) {
                     case E_HALF:
                         halfScore();
@@ -55,7 +55,7 @@ public class MolkyJoueur {
             // Ajout du nouveau score
             m_score.add(m_score.get(m_score.size()-1) + ai_lancer);
 
-            // A-t-il depasser le score maximal ?
+            // A-t-il depassé le score maximal ?
             if (getLastScore() > m_gamePref.m_finalScore) {
                 switch (m_gamePref.m_passScore){
                     case E_WON:

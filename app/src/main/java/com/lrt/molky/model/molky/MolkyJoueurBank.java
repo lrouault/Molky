@@ -2,6 +2,8 @@ package com.lrt.molky.model.molky;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import java.util.ArrayList;
 import java.util.Collections;
 
@@ -11,13 +13,14 @@ public class MolkyJoueurBank {
     ArrayList<MolkyJoueur> m_listJoueurs = new ArrayList<>();
     int m_nextPlayer = 0;
     private Boolean m_someoneHasWon = false;
-    public MolkyGamePreference m_gamePref = null;
+    public MolkyGamePreference m_gamePref;
 
     public MolkyJoueurBank(MolkyGamePreference ai_gamePref) {
         m_gamePref = ai_gamePref;
     }
 
-    public MolkyJoueurBank(MolkyJoueurBank ai_joueurBank) {
+    public MolkyJoueurBank(@NonNull MolkyJoueurBank ai_joueurBank) {
+        m_gamePref = ai_joueurBank.m_gamePref;
         m_nextPlayer = ai_joueurBank.m_nextPlayer;
         m_someoneHasWon = ai_joueurBank.m_someoneHasWon;
         m_listJoueurs = new ArrayList<>();
@@ -136,5 +139,14 @@ public class MolkyJoueurBank {
 
     public Boolean getSomeoneHasWon() {
         return m_someoneHasWon;
+    }
+
+    @NonNull
+    public String toString() {
+        return "";
+    }
+
+    public void parseString(String ai_str) {
+        //TODO
     }
 }

@@ -23,7 +23,6 @@ import com.lrt.molky.R;
 
 public class MainActivity extends AppCompatActivity {
 
-    private EditText m_txtName;
     private Button m_btnCapitales;
     private Button m_btnPositions;
 
@@ -47,8 +46,6 @@ public class MainActivity extends AppCompatActivity {
 
         m_sharedPreferences = getPreferences(MODE_PRIVATE);
 
-
-        m_txtName = findViewById(R.id.activity_main_name);
         m_btnCapitales = findViewById(R.id.activity_main_capitales);
         m_btnPositions = findViewById(R.id.activity_main_positions);
         m_chkAfrique = findViewById(R.id.activity_main_afrique);
@@ -59,25 +56,8 @@ public class MainActivity extends AppCompatActivity {
         m_chkDiff2 = findViewById(R.id.activity_main_diff_2);
         m_chkDiff3 = findViewById(R.id.activity_main_diff_3);
 
-        if(m_sharedPreferences.contains("firstname"))
-            m_txtName.setText(m_sharedPreferences.getString("firstname",null));
-
-        m_btnCapitales.setEnabled(m_txtName.getText().toString().length() !=0);
-        m_btnPositions.setEnabled(m_txtName.getText().toString().length() !=0);
-
-        m_txtName.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                m_btnCapitales.setEnabled(s.toString().length() !=0);
-                m_btnPositions.setEnabled(s.toString().length() !=0);
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
+        //m_btnCapitales.setEnabled(m_txtName.getText().toString().length() !=0);
+        //m_btnPositions.setEnabled(m_txtName.getText().toString().length() !=0);
 
         m_chkAfrique.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -89,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
         m_chkAmerique.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -99,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
         m_chkAsie.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -109,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
         m_chkEurope.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -130,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
         m_chkDiff2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -140,6 +124,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
         m_chkDiff3.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -157,8 +142,6 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if(m_chkAfrique.isChecked()|| m_chkAmerique.isChecked()||
                         m_chkAsie.isChecked()|| m_chkEurope.isChecked()) {
-
-                    m_sharedPreferences.edit().putString("firstname", m_txtName.getText().toString()).apply();
 
                     m_gamePreference = new GamePreference();
                     m_gamePreference.setAfrique(m_chkAfrique.isChecked());
@@ -186,8 +169,6 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if(m_chkAfrique.isChecked()|| m_chkAmerique.isChecked()||
                         m_chkAsie.isChecked()|| m_chkEurope.isChecked()) {
-
-                    m_sharedPreferences.edit().putString("firstname", m_txtName.getText().toString()).apply();
 
                     m_gamePreference = new GamePreference();
                     m_gamePreference.setAfrique(m_chkAfrique.isChecked());
